@@ -1,20 +1,34 @@
 from torch.utils.data import DataLoader
-from torchvision import datasets
-from torchvision.transforms import ToTensor
+from torchvision import datasets, transforms
+from torchvision.transforms import Resize, ToTensor
+
+test_batch_size = 4096
+training_batch_size = 4096
+
+resize_transform = Resize((28, 28))
 
 training_data = datasets.EMNIST(
         root="data",
         split="digits",
         train=True,
         download=True,
-        transform=ToTensor()
+        # transform=ToTensor()
+        transform=transforms.Compose([ToTensor(), resize_transform])
         )
 
-test_data = datasets.SEMEION(
+test_data = datasets.EMNIST(
         root="data",
+        split="digits",
         download=True,
-        transform=ToTensor()
-    )
+        # transform=ToTensor()
+        transform=transforms.Compose([ToTensor(), resize_transform])
+        )
+
+# test_data = datasets.SEMEION(
+#         root="data",
+#         download=True,
+#         transform=transforms.Compose([ToTensor(), resize_transform])
+#     )
 
 numbers_map = {
         0: "zero",
@@ -29,5 +43,5 @@ numbers_map = {
         9: "nine"
         }
 
-train_dataloader = DataLoader(training_data, batch_size=32, shuffle=True)
-test_dataloader = DataLoader(test_data, batch_size=32, shuffle=True)
+train_dataloader = DataLoader(training_data, batch_size=training_batch_size, shuffle=True, num_workers=12)
+test_dataloader = DataLoader(test_data, batch_size=test_batch_size, shuffle=True, num_workers=12)
