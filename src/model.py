@@ -10,7 +10,7 @@ class NeuralNetwork(nn.Module):
             nn.Linear(28*28, 512),
             nn.BatchNorm1d(512),
             nn.ReLU(),
-            nn.Dropout(0.5),
+            nn.Dropout(0.7), # 0.5
             nn.Linear(512, 512),
             nn.BatchNorm1d(512),
             nn.ReLU(),

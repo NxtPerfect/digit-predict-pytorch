@@ -2,7 +2,7 @@ from torch import nn
 from torch import optim
 from torchvision import torch
 from model import NeuralNetwork
-from dataset import training_data, test_data, train_dataloader, test_dataloader
+from dataset import train_dataloader, test_dataloader_emnist, test_dataloader_semeion
 
 
 if __name__ == "__main__":
@@ -16,18 +16,22 @@ if __name__ == "__main__":
     print(f"Using {device} device")
     model = NeuralNetwork().to(device)
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(model.parameters(), lr=0.04) # 0.003
+    optimizer = optim.Adam(model.parameters(), lr=0.026)
+    # learning rate EMNIST accuracy + loss / SEMEION accuracy + loss optimizer
+    # 0.04 92.22+1.59/8.78+1.6 EMNIST/SEMEION with SDM
+    # 0.06 97.22+1.51/10.55+1.5 ADAM
+    # 0.03 98.29+1.48/15.13+1.48 ADAM
+    # 0.026 98.45+1.48/12.55+1.48 ADAM
 
     # Define a learning rate scheduler
-    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=15, gamma=-1.1) # step_size 15 gamma -1.1
+    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=25, gamma=0.1) # step_size 15 gamma -1.1 25/0.1 98.45/13.56
 
     # Number of iterations over dataset
     num_epochs = 20
-    # Best validation loss and how many epochs to wait until early stop training
-    best_validation_loss = float('inf')
+    # How many epochs to wait until early stop training with no change in patience
     patience = 3
 
-    while num_epochs > 0:
+    while num_epochs > 0 and patience > 0:
         for inputs, labels in train_dataloader:
             inputs, labels = inputs.to(device), labels.to(device)
 
@@ -42,16 +46,36 @@ if __name__ == "__main__":
         num_epochs -= 1
 
     model.eval()
-    correct = 0
-    total = 0
 
     with torch.no_grad():
         validation_loss = 0.0
-        for inputs, labels in test_dataloader:
+        correct = 0
+        total = 0
+        for inputs, labels in test_dataloader_emnist:
             inputs, labels = inputs.to(device), labels.to(device)
 
-            # # Reshape inputs to match the expected input size (assuming it's 28x28)
-            # inputs = inputs.view(inputs.size(0), -1, 1)
+            outputs = model(inputs)
+            _, predicted = torch.max(outputs.data, 1)
+
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+
+            validation_loss += loss.item()
+
+
+    scheduler.step()
+
+    accuracy = correct / total
+    avg_validation_loss = validation_loss / len(test_dataloader_emnist)
+
+    print(f"\n{'-' * 20}\nEMNIST:\n\nTest accuracy: {accuracy * 100:.2f}%, with average validation loss: {avg_validation_loss:.6f}.")
+
+    with torch.no_grad():
+        validation_loss = 0.0
+        correct = 0
+        total = 0
+        for inputs, labels in test_dataloader_semeion:
+            inputs, labels = inputs.to(device), labels.to(device)
 
             outputs = model(inputs)
             _, predicted = torch.max(outputs.data, 1)
@@ -64,5 +88,6 @@ if __name__ == "__main__":
     scheduler.step()
 
     accuracy = correct / total
-    avg_validation_loss = validation_loss / len(test_dataloader)
-    print(f'Test accuracy: {accuracy * 100:.2f}%, with average validation loss: {avg_validation_loss:.6f}.')
+    avg_validation_loss = validation_loss / len(test_dataloader_semeion)
+
+    print(f"SEMEION:\n\nTest accuracy: {accuracy * 100:.2f}%, with average validation loss: {avg_validation_loss:.6f}.")
